@@ -3,10 +3,64 @@ from discord import Embed,Colour
 from discord.ext import commands
 import aiosqlite as sql
 from datetime import datetime
+from discord.utils import get
 
 class Admin(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
+    
+    @commands.command()
+    @commands.has_permissions(manage_roles=True)
+    async def addrole(self,ctx,name,*,rgb):
+        rgb = rgb.split(",")
+        rgb = [int(i) for i in rgb]
+        role = await ctx.guild.create_role(name=name,colour=Colour.from_rgb(rgb[0],rgb[1],rgb[2]))
+        await ctx.send(f"Created role, Info:\nName: {role.name}\nColour: {role.colour}\nID: {role.id}")
+
+    @commands.group(invoke_without_command=True)
+    @commands.has_permissions(manage_guild=True)
+    async def set(self,ctx):
+        await ctx.send("Subcommands:\n1. prefix <prefix>\n2. admin <role>")
+
+    @set.command()
+    async def prefix(self,ctx,prefix):
+        async with sql.connect('./db/data.sql') as db:
+            async with db.execute("SELECT pre FROM prefix WHERE guild = ?",(ctx.guild.id,)) as c:
+                row = await c.fetchone()
+                if row[0] == prefix:
+                    await ctx.send("Familiar text isn't it?")
+                if len(prefix) > 5:
+                    await ctx.send("Cannot be more than 5 characters")
+                else:
+                    if row:
+                        await db.execute("UPDATE prefix SET pre =? where guild = ?",(prefix,ctx.guild.id,))
+                        await db.commit()
+                        await ctx.send("Successfully updated prefix")
+                    else:
+                        await db.execute("INSERT INTO prefix VALUES (?,?)",(ctx.guild.id,prefix))
+                        await db.commit()
+                        await ctx.send("Successfully added prefix")
+    @set.command()
+    async def admin(self,ctx,role:discord.Role):
+        async with sql.connect("./db/data.sql") as db:
+            await db.execute("CREATE TABLE IF NOT EXISTS admins(id INTEGER,name TEXT,guild INTEGER)")
+            await db.commit()
+            async with db.execute("SELECT id FROM admins WHERE guild = ?",(ctx.guild.id,)) as c:
+                row = await c.fetchone()
+                if row:
+                    await db.execute("UPDATE admins SET id = ?,name = ? WHERE guild = ?",(role.id,role.name,ctx.guild.id,))
+                    await db.commit()
+                    await ctx.send("Successfully updated Admin role")
+                else:
+                    await db.execute("INSERT INTO admins VALUES (?,?,?)",(role.id,role.name,ctx.guild.id,))
+                    await db.commit()
+                    await ctx.send("Successfully added admin role")
+
+                    
+    
+    @commands.command()
+    async def permissions(self,ctx):
+        await ctx.send(ctx.guild.me.guild_permissions)
     
     @commands.command(aliases=["clear","yeet"])
     @commands.has_permissions(manage_messages=True)
@@ -39,18 +93,11 @@ class Admin(commands.Cog):
                        await db.execute("INSERT INTO verified (userid,name,date) VALUES (?,?,?)",(member.id,member.name,datetime.utcnow(),))
                        await db.commit()
                        await ctx.send("Successfully added member to database")
-
-    @verify.error
-    async def on_command_error(self,ctx,err):
-        if isinstance(err,commands.MissingRequiredArgument):
-            await ctx.send(f"Missing argument: **{err.param.name}**")
-        else:
-            raise err
             
     @commands.command()
     @commands.has_permissions(kick_members=True)
     async def mute(self,ctx,member:discord.Member):
-        role = ctx.guild.get_role(729936090315620382)
+        role = role = get(ctx.guild.roles,name="Muted")
         await member.add_roles(role)
         await ctx.send(f"🔇 Muted {member.display_name}")
         async with sql.connect("./db/data.sql") as db:
@@ -60,12 +107,13 @@ class Admin(commands.Cog):
     @commands.has_permissions(kick_members=True)
     async def unmute(self,ctx,member:discord.Member):
         roles = [i.name for i in member.roles]
-        role = ctx.guild.get_role(729936090315620382)
+        role = role = get(ctx.guild.roles,name="Muted")
         if "Muted" in roles:
             await ctx.send(f"🔈 Unmuted {member.display_name}")
             await member.remove_roles(role)
             async with sql.connect("./db/data.sql") as db:
                 await db.execute("DELETE FROM muted WHERE userid = ?",(member.id,))
+                await db.commit()
         else:
             await ctx.send("Member is not muted")
             
@@ -102,7 +150,7 @@ class Admin(commands.Cog):
     async def say(self,ctx,*,message):
             await ctx.send(message)
     
-    @commands.command()
+    @commands.command(aliases=["gay"])
     async def gayness(self,ctx,*,who):
             who1 = sum([ord(i) for i in who])//10
             if who.lower() in ["jabo","jabolesbo"]:
