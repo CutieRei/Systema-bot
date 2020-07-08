@@ -11,6 +11,15 @@ class Event(commands.Cog):
         self.ready = False
         self.dc = False
     
+    #@commands.Cog.listener()
+#    async def on_command_error(self,ctx,err):
+#        channel = self.bot.get_channel(730370841581453403)
+#        if isinstance(err,commands.CommandError):
+#            await channel.send(err)
+#        else:
+#            await channel.send(err)
+            
+    
     #async def bot_check(self,ctx):
 #        perms = {}
 #        for perm,bool in ctx.author.guild_permissions:
@@ -31,8 +40,6 @@ class Event(commands.Cog):
         else:
             print(f">>{self.bot.user.name} has connected")
             async with sql.connect("./db/data.sql") as db:
-                await db.execute('CREATE TABLE IF NOT EXISTS verified(id INTEGER PRIMARY KEY,userid INTEGER,name TEXT,date DATETIME default CURRENT_TIMESTAMP)')
-                await db.commit()
                 print("data> Connected to database")
             self.ready = True
             self.dc = False
@@ -49,19 +56,12 @@ class Event(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self,member):
-        if member.guild.name == "Systema":
-            await asyncio.sleep(1.5)
-            async with sql.connect("./db/data.sql") as db:
-                await db.execute("INSERT INTO verified (userid,name,date) VALUES (?,?,?)",(member.id,member.name,datetime.utcnow(),))
-                await db.commit()
+        user = self.bot.get_user(member.id)
+        await user.send(f"Hello {member.name}, Welcome to {member.guild}")
 
     @commands.Cog.listener()
     async def on_member_remove(self,member):
-        if member.guild.name == "System":
-            await asyncio.sleep(0.5)
-            async with sql.connect("./db/data.sql") as db:
-                await db.execute("DELETE FROM verified WHERE userid = ?",(member.id,))
-                await db.commit()
+        pass
 
 def setup(bot):
     print("#Loaded event")

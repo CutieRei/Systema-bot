@@ -78,21 +78,6 @@ class Admin(commands.Cog):
             title=f"Purged {len(deleted)} messages"
         )
         await ctx.send(embed=card, delete_after=3)
-
-    @commands.command()
-    @commands.has_permissions(manage_roles=True)
-    async def verify(self,ctx,member:discord.Member):
-        async with sql.connect("./db/data.sql") as db:
-            async with ctx.channel.typing():
-                await asyncio.sleep(1)
-                async with db.execute("SELECT * FROM verified WHERE userid = ?",(member.id,)) as row:
-                    user = await row.fetchone()
-                    if user:
-                        await ctx.send("Member already in database")
-                    else:
-                       await db.execute("INSERT INTO verified (userid,name,date) VALUES (?,?,?)",(member.id,member.name,datetime.utcnow(),))
-                       await db.commit()
-                       await ctx.send("Successfully added member to database")
             
     @commands.command()
     @commands.has_permissions(kick_members=True)
@@ -101,8 +86,8 @@ class Admin(commands.Cog):
         await member.add_roles(role)
         await ctx.send(f"🔇 Muted {member.display_name}")
         async with sql.connect("./db/data.sql") as db:
-            await db.execute("INSERT INTO muted (userid,name,date) VALUES (?,?,?)",(member.id,member.name,datetime.utcnow(),))
-            await db.execute()
+            await db.execute("INSERT INTO muted (id,name,date) VALUES (?,?,?)",(member.id,member.name,datetime.utcnow(),))
+            await db.commit()
     @commands.command()
     @commands.has_permissions(kick_members=True)
     async def unmute(self,ctx,member:discord.Member):
@@ -112,7 +97,7 @@ class Admin(commands.Cog):
             await ctx.send(f"🔈 Unmuted {member.display_name}")
             await member.remove_roles(role)
             async with sql.connect("./db/data.sql") as db:
-                await db.execute("DELETE FROM muted WHERE userid = ?",(member.id,))
+                await db.execute("DELETE FROM muted WHERE id = ?",(member.id,))
                 await db.commit()
         else:
             await ctx.send("Member is not muted")
@@ -120,31 +105,39 @@ class Admin(commands.Cog):
 
     @commands.command()
     async def suggest(self,ctx):
-        msg1 = await ctx.send("Whats the Suggestion?")
-        card = Embed(
-            colour=Colour.from_rgb(102,153,204),
-            timestamp=datetime.utcnow(),
-            title=f"{str(ctx.author)}\nNew Suggestion!"
-        )
-        def check(msg):
-            if msg.author == ctx.author:
-                return True
-        
-        head =  await self.bot.wait_for('message',check=check)
-        if head.content.lower() == "cancel":
-            await msg1.delete()
-            await head.delete()
-            await ctx.send("Suggestion aborted")
+        await ctx.message.delete()
+        if ctx.guild.name.lower() == "systema":
+            msg1 = await ctx.send("Whats the Suggestion? type `cancel` to abort suggestion")
+            card = Embed(
+                colour=Colour.from_rgb(102,153,204),
+                timestamp=datetime.utcnow(),
+                title=f"{str(ctx.author)}\nNew Suggestion!"
+            )
+            def check(msg):
+                if msg.author == ctx.author:
+                    return True
+            
+            head =  await self.bot.wait_for('message',check=check)
+            if head.content.lower() == "cancel":
+                await msg1.delete()
+                await head.delete()
+                await ctx.send("Suggestion aborted")
+            else:
+                await msg1.delete()
+                await head.delete()
+                msg2 = await ctx.send("Whats your description of the suggestion?")
+                desc = await self.bot.wait_for('message',check=check)
+                card.add_field(name="Title",value=head.content)
+                card.add_field(name="Description",value=desc.content)
+                await msg2.delete()
+                await desc.delete()
+                channel = self.bot.get_channel(729681182928928828)
+                suggest = await channel.send(embed=card)
+                await suggest.add_reaction("✅")
+                await suggest.add_reaction("❎")
+                await ctx.send("Suggestion posted!")
         else:
-            await msg1.delete()
-            await head.delete()
-            msg2 = await ctx.send("Whats your description of the suggestion?")
-            desc = await self.bot.wait_for('message',check=check)
-            card.add_field(name="Title",value=head.content)
-            card.add_field(name="Description",value=desc.content)
-            await msg2.delete()
-            await desc.delete()
-        await ctx.send(embed=card)
+            await ctx.send('Not in main server!')
     
     @commands.command()
     async def say(self,ctx,*,message):
