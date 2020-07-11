@@ -4,15 +4,7 @@ import aiosqlite as sql
 
 async def get_prefix(bot,msg):
     pre = [f"<@!{bot.user.id}> ",f"<@{bot.user.id}> ","s."]
-    async with sql.connect("./db/data.sql") as db:
-    	await db.execute("CREATE TABLE IF NOT EXISTS prefix(guild INTEGER,pre TEXT)")
-    	await db.commit()
-    	async with db.execute("SELECT pre FROM prefix WHERE guild  = ?",(msg.guild.id,)) as c:
-    		row = await c.fetchone()
-    		if row:
-    			return pre.append(row[0])
-    		else:
-    			return pre
+    return pre
 bot = commands.Bot(command_prefix=get_prefix,help_command=None,case_insensitive=True)
 token = ""
 with open("./private/token.txt",'r') as tk:

@@ -4,11 +4,142 @@ from discord.ext import commands
 import aiosqlite as sql
 from datetime import datetime
 from discord.utils import get
+import requests,random,re,aiohttp
 
 class Admin(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
     
+    @commands.command()
+    @commands.has_permissions(manage_channels=True)
+    async def set_star(self,ctx,star:int):
+        async with sql.connect("./db/data.sql") as db:
+            async with db.execute("SELECT star FROM board WHERE guild = ?",(ctx.guild.id,)) as c:
+                count = await c.fetchone()
+                if count:
+                    await db.execute("UPDATE board SET star = ? WHERE guild = ?",(star,ctx.guild.id,))
+                    await db.commit()
+                    await ctx.send("Updated Starboard requirement")
+                else:
+                    await db.execute("INSERT INTO board VALUES (?,?)",(ctx.guild.id,star,))
+                    await db.commit()
+                    await ctx.send("Successfully added Starboard requirement")
+                
+        
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self,pay):
+        guild_count = 0
+        async with sql.connect("./db/data.sql") as db:
+            async with db.execute("SELECT star FROM board WHERE guild = ?",(pay.guild_id,)) as c:
+                count1 = await c.fetchone()
+                if count1:
+                    guild_count = count1[0]
+                else:
+                    guild_count = 3
+        guild = self.bot.get_guild(pay.guild_id)
+        channel = get(guild.text_channels,id=pay.channel_id)
+        msg = await channel.fetch_message(pay.message_id)
+        star = False
+        count = 0
+        for i in msg.reactions:
+            if i.emoji == "⭐" and i.count >= guild_count:
+                star = True
+                count = i.count
+        member = guild.get_member(msg.author.id)
+        board = None
+        for i in guild.text_channels:
+            if re.match(r".*starboard.*",i.name,re.IGNORECASE):
+                board = i
+        if board:
+            if star:
+                card = Embed(
+                description=msg.content,
+                timestamp=datetime.utcnow()
+                )
+                card.set_author(icon_url=member.avatar_url_as(static_format='png'),name=str(member))
+                card.add_field(name="Original",value=f"[Jump!]({msg.jump_url})")
+                await board.send(f"🌟{count}",embed=card)
+    
+    @commands.command()
+    @commands.has_permissions(manage_channels=True)
+    async def init_starboard(self,ctx):
+        already=False
+        pattern = r".*starboard.*"
+        for i in ctx.guild.text_channels:
+            if re.match(pattern,i.name,re.IGNORECASE):
+                already = True
+        if already:
+            await ctx.send('Already have starboard!')
+        if not already:
+            role = get(ctx.guild.roles,name="Systema")
+            everyone = ctx.guild.default_role
+            star = await ctx.guild.create_text_channel("starboard")
+            await star.set_permissions(everyone,send_messages=False)
+            await star.set_permissions(role,send_messages=True)
+            await ctx.send("Successfully created starboard!")
+    
+    @commands.command()
+    async def render(self,ctx,world):
+        session = aiohttp.ClientSession()
+        card = Embed(
+        title=f"Render of world **{world.upper()}**"
+        )
+        yes = None
+        async with ctx.channel.typing():
+            render=f"https://growtopiagame.com/worlds/{world.lower()}.png"
+            async with session.get(render) as r:
+                if r.status == 200:
+                    card.set_image(url=render)
+                    yes = True
+                elif r.status in [404,403]:
+                    yes = False
+                else:
+                    yes = None
+        if yes:
+            await ctx.send(embed=card)
+        elif not yes:
+            await ctx.send("That world is not rendered yet")
+        elif yes is None:
+            await ctx.send(r.status_code)
+        await session.close()
+    
+    @commands.command()
+    @commands.has_permissions(manage_channels=True)
+    async def init_suggest(self,ctx):
+        pattern = r".*suggestion.*"
+        already_have = None
+        for i in ctx.guild.text_channels:
+            if re.match(pattern,i.name,re.IGNORECASE):
+                await ctx.send("Already have Suggestion channel!")
+            else:
+                already_have = True
+        if not already_have:
+            async with ctx.channel.typing():
+                everyone = ctx.guild.default_role
+                role = get(ctx.guild.roles,name="Systema")
+                channel = await ctx.guild.create_text_channel("suggestion")
+                await channel.set_permissions(everyone,send_messages=False)
+                await channel.set_permissions(role,send_messages=True)
+                await ctx.send("Successfully created!")
+    
+    @commands.command()
+    async def test(self,ctx,tags):
+        session = aiohttp.ClientSession()
+        if ctx.channel.is_nsfw() or ctx.channel.name == "nsfw-not":
+            async with ctx.channel.typing():
+                tags = tags.replace(" ","_")
+                async with session.get(f"https://r34-json-api.herokuapp.com/posts?tags={tags}") as r:
+                    data = await r.json()
+                    data = random.choice(data)
+                    card = Embed(
+                    title="Here"
+                    )
+                    card.set_image(url=data["file_url"])
+                await ctx.send(embed=card)
+        else:
+            await ctx.send("Not in nsfw channel!")
+        await session.close()
+            
     @commands.command()
     @commands.has_permissions(manage_roles=True)
     async def addrole(self,ctx,name,*,rgb):
@@ -105,13 +236,18 @@ class Admin(commands.Cog):
 
     @commands.command()
     async def suggest(self,ctx):
-        await ctx.message.delete()
-        if ctx.guild.name.lower() == "systema":
+        okokok = False
+        for i in ctx.guild.text_channels:
+            if re.match(r".*suggestion.*",i.name,re.IGNORECASE):
+                okokok = True
+        
+        if okokok:
+            await ctx.message.delete()
             msg1 = await ctx.send("Whats the Suggestion? type `cancel` to abort suggestion")
             card = Embed(
-                colour=Colour.from_rgb(102,153,204),
-                timestamp=datetime.utcnow(),
-                title=f"{str(ctx.author)}\nNew Suggestion!"
+            colour=Colour.from_rgb(102,153,204),
+            timestamp=datetime.utcnow(),
+            title=f"{str(ctx.author)}\nNew Suggestion!"
             )
             def check(msg):
                 if msg.author == ctx.author:
@@ -131,13 +267,18 @@ class Admin(commands.Cog):
                 card.add_field(name="Description",value=desc.content)
                 await msg2.delete()
                 await desc.delete()
-                channel = self.bot.get_channel(729681182928928828)
+                channel = None
+                pattern = r".*suggestion.*"
+                for i in ctx.guild.text_channels:
+                    if re.match(pattern,i.name,re.IGNORECASE):
+                        channel = i
+                    
                 suggest = await channel.send(embed=card)
                 await suggest.add_reaction("✅")
                 await suggest.add_reaction("❎")
                 await ctx.send("Suggestion posted!")
         else:
-            await ctx.send('Not in main server!')
+            await ctx.send("Dont have Suggestion channel please use init_suggest")
     
     @commands.command()
     async def say(self,ctx,*,message):
@@ -145,26 +286,36 @@ class Admin(commands.Cog):
     
     @commands.command(aliases=["gay"])
     async def gayness(self,ctx,*,who):
-            who1 = sum([ord(i) for i in who])//10
-            if who.lower() in ["jabo","jabolesbo"]:
-                who1 = 0
-            card = Embed(
-            title=f"{who1}% Gayness"
-            )
-            if who1 > 100:
-                card.description="Wow so gay🏳️‍🌈"
-            elif who1 > 80:
-                card.description="Wow, gay?"
-            elif who1 > 35:
-                card.description="Idk gay...👀"
-            elif who1 > 1:
-                card.description="Not really gey"
-            elif who1 == 0:
-                card.description="Not gay whatsoever"
-            await ctx.send(embed=card)
+            if len(who) > 100:
+                await ctx.send("No spam word")
+            else:
+                who1 = int(str(sum([ord(i) for i in who]))[-2:])
+                random.seed(int(who1))
+                who1 = random.randint(0,200)
+                if who.lower() in ["jabo","jabolesbo"]:
+                    who1 = 0
+                if who.lower() in ["saltydumpling","saltydumplings"]:
+                    who1 = random.randint(1000,10000)
+                card = Embed(
+                title=f"{who1}% Gayness"
+                )
+                if who1 > 150:
+                    card.description="VERY VERY GAY YOU ARE GAYESS OF THE GAY"
+                elif who1 > 100:
+                    card.description="Wow so gay🏳️‍🌈"
+                elif who1 > 80:
+                    card.description="Wow, gay?"
+                elif who1 > 35:
+                    card.description="Idk gay...👀"
+                elif who1 > 1:
+                    card.description="Not really gey"
+                elif who1 == 0:
+                    card.description="Not gay whatsoever"
+                await ctx.send(embed=card)
+                random.seed(0)
             
     @commands.command()
-    @commands.has_role("Developers")
+    @commands.is_owner()
     async def dc(self,ctx):
         await ctx.send("Disconnected!")
         await self.bot.logout()
