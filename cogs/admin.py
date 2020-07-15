@@ -9,6 +9,75 @@ import requests,random,re,aiohttp
 class Admin(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
+
+    @commands.command()
+    async def wotd(self,ctx):
+    	msg = await ctx.send("Fetching.....")
+    	async with ctx.channel.typing():
+    		session = aiohttp.ClientSession()
+    		async with session.get("https://growtopiagame.com/detail") as r:
+    			data = await r.json(content_type="text/html")
+    			wotd = data["world_day_images"]["full_size"]
+    			wotd = wotd.split('/')[-1].split('.png')[0]
+    			card = Embed(
+    				title=f"Today world of the day is {wotd.upper()}",
+    				timestamp=datetime.utcnow()
+    			)
+    			card.set_image(url=data['world_day_images']["full_size"])
+    			await ctx.send(embed=card)
+    			await msg.delete()
+
+    @commands.command()
+    async def check(self,ctx,member:discord.Member):
+    	roles = []
+    	for i in member.roles:
+    		if i.name != "@everyone":
+    			roles.append(i.name)
+    	user = self.bot.get_user(member.id)
+    	created = str(user.created_at).split(".")[0]
+    	joined = str(member.joined_at).split(".")[0]
+    	card = Embed(
+    		title=f"Info about {str(member)}",
+    		timestamp=datetime.utcnow()
+    	)
+    	card.set_thumbnail(url=member.avatar_url_as(static_format='png'))
+    	card.add_field(name="Joined at",value=f"Member joined this server at **{joined}**")
+    	card.add_field(name="Joined discord at",value=f"User joined discord at **{created}**")
+    	card.add_field(name="Member roles",value=f"`{','.join(roles)}`")
+    	await ctx.send(embed=card)
+    
+    @commands.command(aliases=["creds"])
+    async def credits(self,ctx):
+        creator = self.bot.get_user(716503311402008577)
+        
+        card = Embed(
+            colour=Colour.from_rgb(0,100,255),
+            title="Credits for Systema bot",
+            timestamp=datetime.utcnow()
+        )
+        card.add_field(name="Creator",value=f"{str(creator)} created this bot")
+        card.set_footer(text="This bot is open source and you can use it anyway you want but not make any money from it",icon_url=creator.avatar_url_as(static_format='png'))
+        await ctx.send(embed=card)
+    
+    @commands.command(aliases=["stats"])
+    async def status(self,ctx):
+        session = aiohttp.ClientSession()
+        async with ctx.channel.typing():
+            async with session.get("https://growtopiagame.com/detail") as r:
+                data = await r.json(content_type="text/html")
+                if int(data["online_user"]) < 10:
+                    status = "Offline"
+                    colour = (255,100,0)
+                else:
+                    colour = (0,255,100)
+                    status = "Online"
+                card = Embed(
+                colour=Colour.from_rgb(colour[0],colour[1],colour[2]),
+                title="Status for Growtopia server",
+                description=f"Status: **{status}**\nPlayers: **{data['online_user']}**"
+                )
+                await ctx.send(embed=card)
+        await session.close()
     
     @commands.command()
     @commands.has_permissions(manage_channels=True)
@@ -123,22 +192,33 @@ class Admin(commands.Cog):
                 await ctx.send("Successfully created!")
     
     @commands.command()
-    async def test(self,ctx,tags):
+    async def rule34(self,ctx,tags):
         session = aiohttp.ClientSession()
+        msg = await ctx.send("Please wait while im fetching.....")
         if ctx.channel.is_nsfw() or ctx.channel.name == "nsfw-not":
+            yeah = False
             async with ctx.channel.typing():
+                card = Embed(
+                    	title="nsfw.png"
+                    	)
                 tags = tags.replace(" ","_")
                 async with session.get(f"https://r34-json-api.herokuapp.com/posts?tags={tags}") as r:
                     data = await r.json()
-                    data = random.choice(data)
-                    card = Embed(
-                    title="Here"
-                    )
-                    card.set_image(url=data["file_url"])
-                await ctx.send(embed=card)
+                    if len(data) == 0:
+                    	pass
+                    else:
+                    	yeah = True
+                    	data = random.choice(data)
+                    	card.set_image(url=data["file_url"])
+            if yeah:
+                await msg.edit(embed=card,content=None)
+            else:
+                await msg.edit(content="Either that tag doesn't exists or the connection is having an issue")
+            await session.close()  
+            await ctx.send("Just making sure if your 18+ 👀")
         else:
-            await ctx.send("Not in nsfw channel!")
-        await session.close()
+            await msg.edit(content="Not in nsfw channel!")
+            await session.close()
             
     @commands.command()
     @commands.has_permissions(manage_roles=True)
@@ -195,15 +275,22 @@ class Admin(commands.Cog):
     
     @commands.command(aliases=["clear","yeet"])
     @commands.has_permissions(manage_messages=True)
-    async def purge(self,ctx,amount:int=5):
+    async def purge(self,ctx,amount:int=5,member:discord.Member=None):
         def check(m):
+            discri = None
+            if member is None:
+                pass
+            else:
+                discri = member.name
             if m.pinned:
                 return False
+            elif m.author.name == discri:
+                return True
             else:
                 return True
         async with ctx.channel.typing():
             await asyncio.sleep(0.5)
-            deleted = await ctx.channel.purge(limit=amount,check=check)
+            deleted = await ctx.channel.purge(limit=amount+1,check=check)
         card = Embed(
             colour=Colour.from_rgb(0,255,100),
             title=f"Purged {len(deleted)} messages"

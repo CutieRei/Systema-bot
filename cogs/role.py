@@ -1,6 +1,6 @@
 import discord,asyncio
 from discord import Embed,Colour
-from discord.ext import commands
+from discord.ext import commands,tasks
 import aiosqlite as sql
 from discord.utils import get
 
@@ -9,6 +9,18 @@ class Role(commands.Cog):
     def __init__(self,bot):
         self.bot = bot
         bot.loop.create_task(self.loaded())
+    
+    @commands.command()
+    @commands.is_owner()
+    async def start(self,ctx):
+        self.loop_check.start()
+        await ctx.send("Starting loop")
+        
+    @commands.command()
+    @commands.is_owner()
+    async def stop(self,ctx):
+        self.loop_check.stop()
+        await ctx.send("Loop stopped")
     
     async def loaded(self):
         async with sql.connect("./db/data.sql") as db:
@@ -41,6 +53,16 @@ class Role(commands.Cog):
                         await db.execute("DELETE FROM roles_backup WHERE userid = ?",(member.id,))
                     else:
                         pass
+    @tasks.loop(minutes=1.5)
+    async def loop_check(self):
+        guild = get(self.bot.guilds,id=729680088680890379)
+        role = get(guild.roles,id=729681551268380733)
+        for i in guild.members:
+            if "pre-alpha" in [a.name.lower() for a in i.roles]:
+                pass
+            else:
+                await i.add_roles(role)
+        
 
 def setup(bot):
     print("#Loaded role")

@@ -56,6 +56,18 @@ class Event(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self,member):
+        chad = get(member.guild.text_channels,id=729680089276481618)
+        if chad is None:
+            pass
+        else:
+            sentence = [f"Hello! {member.mention}({str(member)})",f"Grab a bot and have fun in pre-alpha state, {member.mention}({str(member)})"]
+            card = Embed(
+                title=f"{str(member)} Joined!",
+                description=random.choice(sentence),
+                timestamp=datetime.utcnow()
+            )
+            card.set_thumbnail(url=member.avatar_url_as(static_format='png'))
+            await chad.send(embed=card)
         user = self.bot.get_user(member.id)
         await user.send(f"Hello {member.name}, Welcome to {member.guild}")
 
