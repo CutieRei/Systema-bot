@@ -1,4 +1,4 @@
-import discord,asyncio
+import discord,asyncio,os
 from discord.ext import commands
 import aiosqlite as sql
 
@@ -7,31 +7,31 @@ async def get_prefix(bot,msg):
     return pre
 bot = commands.Bot(command_prefix=get_prefix,help_command=None,case_insensitive=True)
 token = ""
-with open("./private/token.txt",'r') as tk:
-    token = tk.read()
-
-extend = []
-with open("config.txt","r") as txt:
-    extend = txt.read().split(",")
-for ext in extend:
-    bot.load_extension("cogs."+ext)
+with open("./private/token.txt","r") as txt:
+    token = txt.read()
+for ext in os.listdir("./cogs"):
+    if ext.endswith(".py"):
+        bot.load_extension("cogs."+ext[:-3])
 
 @bot.command()
 @commands.is_owner()
 async def reload(ctx):
     async with ctx.channel.typing():
-        for i in extend:
-            await asyncio.sleep(0.25)
-            bot.reload_extension("cogs."+i)
-        await ctx.send("Reloaded all cogs")
+        for i in os.listdir("./cogs"):
+            if i.endswith(".py"):
+                bot.reload_extension("cogs."+i[:-3])
+    await ctx.send("Reloaded all cogs")
 
 @bot.command()
 @commands.is_owner()
 async def load(ctx):
     async with ctx.channel.typing():
-        for i in extend:
-            await asyncio.sleep(0.25)
-            bot.load_extension("cogs."+i)
+        for i in os.listdir("./cogs"):
+            try:
+                bot.load_extension("cogs."+i)
+            except:
+                pass
+    await ctx.send("Loaded cogs!")
 
 
 bot.run(token, reconnect=True)

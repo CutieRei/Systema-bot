@@ -1,6 +1,6 @@
 # Systema bot
 
-Current version:  **1.0.5 pre-alpha**
+Current version:  **1.0.8 pre-alpha**
 
 Code: **Python3.8**
 

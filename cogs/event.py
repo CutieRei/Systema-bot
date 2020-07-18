@@ -45,6 +45,7 @@ class Event(commands.Cog):
             self.dc = False
     @commands.Cog.listener()
     async def on_ready(self):
+        await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening,name="Muted people :)"))
         print(">>Cache collected!")
         
     @commands.Cog.listener()
