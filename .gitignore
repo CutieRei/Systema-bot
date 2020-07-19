@@ -1,5 +1,4 @@
 db/*
 private/*
-cogs/__pycache__/*
-__pycache__/*
+**/__pycache__
 config.txt

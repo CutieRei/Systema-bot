@@ -6,6 +6,6 @@ Code: **Python3.8**
 
 Library: **discord.py | 1.4**
 
-Contributors: **ReyterYT**
+Contributors: **ReyterYT**, **ChickenDevs**
 
-Server: **Systema**
+Server: [**Systema**](https://discord.gg/vhqrheT)
