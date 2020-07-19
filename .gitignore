@@ -3,3 +3,4 @@ private/*
 **/__pycache__
 config.txt
 /.idea/
+/venv/
