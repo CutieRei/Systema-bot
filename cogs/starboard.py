@@ -1,4 +1,4 @@
-import discord
+import discord,re
 from discord import Embed,Colour
 from discord.ext import commands,tasks
 import aiosqlite as sql

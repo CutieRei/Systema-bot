@@ -16,10 +16,10 @@ def get_syntax(bot,cmd):
                 return {"usage":f"[{name}]","param":param,"desc":i.description}
             elif i.aliases != []:
                 alias = "|".join([str(i.name),*i.aliases])
-                if i.help is None:
-                    help = "No description"
-                else:
+                if i.help:
                     help = i.help
+                else:
+                    help = "no description"
                 return {"usage":f"[{alias}]","param":param,"desc":help}
 
 class Help(commands.Cog):

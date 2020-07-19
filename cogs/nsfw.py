@@ -2,6 +2,7 @@ import discord,aiohttp
 from discord.ext import commands
 from discord import Embed,Colour
 from datetime import datetime
+import random
 
 
 class Nsfw(commands.Cog):
