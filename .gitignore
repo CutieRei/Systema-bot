@@ -2,3 +2,4 @@ db/*
 private/*
 **/__pycache__
 config.txt
+/.idea/
