@@ -1,9 +1,9 @@
-import discord, asyncio
-from discord.ext import commands
-import aiosqlite as sql
 from datetime import datetime
+
+import aiosqlite as sql
+import discord
+from discord.ext import commands
 from discord.utils import get
-import requests, random, re, aiohttp
 
 
 class Admin(commands.Cog):
@@ -92,7 +92,7 @@ class Admin(commands.Cog):
         """
         Mute member. *note: it is permanent and to unmute, admin will do it manually by executing a command
         """
-        role = role = get(ctx.guild.roles, name="Muted")
+        role = get(ctx.guild.roles, name="Muted")
         await member.add_roles(role)
         await ctx.send(f"🔇 Muted {member.display_name}")
         async with sql.connect("./db/data.sql") as db:
@@ -107,7 +107,7 @@ class Admin(commands.Cog):
         Unmute member
         """
         roles = [i.name for i in member.roles]
-        role = role = get(ctx.guild.roles, name="Muted")
+        role = get(ctx.guild.roles, name="Muted")
         if "Muted" in roles:
             await ctx.send(f"🔈 Unmuted {member.display_name}")
             await member.remove_roles(role)
@@ -127,7 +127,7 @@ class Admin(commands.Cog):
         await self.bot.logout()
 
     @commands.Cog.listener()
-    async def wait_until_ready():
+    async def wait_until_ready(self):
         async with sql.connect("./db/data.sql") as db:
             await db.execute(
                 "CREATE TABLE IF NOT EXISTS muted(id INTEGER PRIMARY KEY,userid INTEGER,name TEXT,date DATETIME")
